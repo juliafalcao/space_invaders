@@ -17,15 +17,15 @@ ENEMY_HEIGHT = 40
 
 BASE_SPEED = 100
 
-ENEMY_START_X = 50
+ENEMY_START_X = 20
 ENEMY_START_Y = 25
-ENEMY_SPACING_X = 40
-ENEMY_SPACING_Y = 40
+ENEMY_SPACING_X = 30
+ENEMY_SPACING_Y = 30
 BUTTON_BORDER = 30
 BUTTON_SPACING = 20
 
-ENEMY_LINES = 2
-ENEMY_COLUMNS = 5
+ENEMY_LINES = 4
+ENEMY_COLUMNS = 10
 
 EASY = 1
 MEDIUM = 2
@@ -93,6 +93,9 @@ def dificuldade():
 
 
 def init_enemies(lines, columns):
+    if lines > 4: lines = 4
+    if columns > 6: columns = 6
+
     enemies = []
 
     for i in range(lines):
