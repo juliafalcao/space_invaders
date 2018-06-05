@@ -3,6 +3,7 @@ from PPlay.gameimage import *
 from PPlay.sprite import *
 from PPlay.keyboard import *
 from PPlay.mouse import *
+from PPlay.collision import *
 
 
 WINDOW_SIZE = 500
@@ -132,16 +133,18 @@ def move_enemies(enemies, enemy_dir_x, enemy_dir_y):
     enemy_step_x = ENEMY_WIDTH + ENEMY_SPACING_X
     enemy_step_y = ENEMY_HEIGHT + ENEMY_SPACING_Y
 
-    if (((enemies[0][len(enemies[0]) - 1].x + ENEMY_WIDTH) + (enemy_step_x * enemy_dir_x) >= WINDOW_SIZE - ENEMY_START_X)
-        or (enemies[0][0].x + (enemy_step_x * enemy_dir_x) < ENEMY_START_X)):
-        for line in enemies:
+    if (enemies[0][len(enemies[0]) - 1] is not None and ((enemies[0][len(enemies[0]) - 1].x + ENEMY_WIDTH) + (enemy_step_x * enemy_dir_x) >= WINDOW_SIZE - ENEMY_START_X)
+        or (enemies[0][0] is not None and enemies[0][0].x + (enemy_step_x * enemy_dir_x) < ENEMY_START_X)):
+        for line in enemies: 
             for enemy in line:
-                enemy.set_position(enemy.x, enemy.y + enemy_step_y * enemy_dir_y)
+                if enemy is not None:
+                    enemy.set_position(enemy.x, enemy.y + enemy_step_y * enemy_dir_y)
         enemy_dir_x = 0 - enemy_dir_x
     else:
         for line in enemies:
             for enemy in line:
-                enemy.set_position(enemy.x + enemy_step_x * enemy_dir_x, enemy.y)
+                if enemy is not None:
+                    enemy.set_position(enemy.x + enemy_step_x * enemy_dir_x, enemy.y)
 
     return enemy_dir_x, enemy_dir_y
 
@@ -160,6 +163,10 @@ def game(CURRENT_DIF):
 
     enemies = init_enemies(ENEMY_LINES, ENEMY_COLUMNS)
 
+    if enemies is None: # the end
+        print("PERDEU KK")
+        return
+        
     enemy_speed = 1.5
     enemy_dir_x = RIGHT
     enemy_dir_y = DOWN
@@ -192,18 +199,26 @@ def game(CURRENT_DIF):
             game_window.close()
             return
 
+        # update enemy positions
+        if total_time - last_enemy_move > enemy_speed:
+            enemy_dir_x, enemy_dir_y = move_enemies(enemies, enemy_dir_x, enemy_dir_y)
+            last_enemy_move = total_time
+
         # update shot positions
         for shot in shots:
             shot.set_position(shot.x, shot.y - shot_speed * delta_time)
 
             if shot.y <= - SHOT_HEIGHT:
                 shots.remove(shot)
-
-        # update enemy positions
-        if total_time - last_enemy_move > enemy_speed:
-            enemy_dir_x, enemy_dir_y = move_enemies(enemies, enemy_dir_x, enemy_dir_y)
-            last_enemy_move = total_time
-
+        
+        # check for enemy and shot collisions
+        for shot in shots:
+            for i in range(len(enemies)):
+                for j in range(len(enemies[0])):
+                    if enemies[i][j] is not None: # enemy still alive
+                        if Collision.collided(shot, enemies[i][j]):
+                            enemies[i][j] = None # now it's dead
+                            shots.remove(shot) # stop shooting
 
         background.draw()
         spaceship.draw()
