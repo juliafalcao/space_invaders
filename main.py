@@ -42,8 +42,8 @@ RIGHT = 1
 UP = -1
 DOWN = 1
 
-
 mouse = Mouse()
+keyboard = Keyboard()
 
 def menu():
     menu_window = Window(WINDOW_SIZE, WINDOW_SIZE)
@@ -58,8 +58,6 @@ def menu():
     botao_dificuldade.set_position(150, 190)
     botao_ranking.set_position(150, 256)
     botao_sair.set_position(150, 328)
-
-    keyboard = Keyboard()
 
     CURRENT_DIF = 2
     
@@ -90,8 +88,6 @@ def dificuldade():
     dif_window = Window(WINDOW_SIZE, WINDOW_SIZE)
     dif_window.set_title("Space Invaders!")
     background = GameImage("img/bg.png")
-
-    keyboard = Keyboard()
 
     while True:
         if keyboard.key_pressed("1"):
@@ -150,14 +146,11 @@ def move_enemies(enemies, enemy_dir_x, enemy_dir_y):
     return enemy_dir_x, enemy_dir_y
 
 def game(CURRENT_DIF):
-    
     game_window = Window(WINDOW_SIZE, WINDOW_SIZE)
     game_window.set_title("Space Invaders!")
 
     background = GameImage("img/bg.png")
     spaceship = Sprite("img/spaceship.png")
-
-    keyboard = Keyboard()
 
     spaceship.set_position(WINDOW_SIZE / 2 - SPACESHIP_WIDTH / 2, WINDOW_SIZE - SPACESHIP_HEIGHT)
 
@@ -196,6 +189,7 @@ def game(CURRENT_DIF):
             menu()
 
         elif keyboard.key_pressed("ESC"):
+            game_window.close()
             return
 
         # update shot positions
