@@ -13,8 +13,8 @@ SHOT_HEIGHT = 14
 SPACESHIP_WIDTH = 42
 SHOT_WIDTH = 4
 SPACESHIP_HEIGHT = 29
-ENEMY_WIDTH = 40
-ENEMY_HEIGHT = 40
+ENEMY_WIDTH = 35
+ENEMY_HEIGHT = 28
 
 BASE_SPEED = 100
 
@@ -25,13 +25,20 @@ ENEMY_SPACING_Y = 15
 BUTTON_BORDER = 30
 BUTTON_SPACING = 20
 
-ENEMY_LINES = 2
-ENEMY_COLUMNS = 6
+global ENEMY_LINES
+ENEMY_LINES = 1
+global ENEMY_COLUMNS
+ENEMY_COLUMNS = 4
 
 EASY = 1
 MEDIUM = 2
 HARD = 3
+global CURRENT_DIF
 CURRENT_DIF = 2
+
+global LIVES
+LIVES = 3
+CURRENT_SCORE = 0
 
 total_time = 0
 shot_time = CURRENT_DIF * 0.1
@@ -113,7 +120,7 @@ def init_enemies(lines, columns):
     for i in range(lines):
         line = []
         for j in range(columns):
-            enemy = Sprite("img/enemy.png")
+            enemy = Sprite("img/enemy2.png")
 
             enemy.set_position(ENEMY_START_X + j * (ENEMY_WIDTH + ENEMY_SPACING_X),
                                ENEMY_START_Y + i * (ENEMY_HEIGHT + ENEMY_SPACING_Y))
@@ -123,11 +130,16 @@ def init_enemies(lines, columns):
     return enemies
 
 def draw_enemies(enemies):
-     for line in enemies:
-            for enemy in line:
-                if enemy is not None:
-                    enemy.draw()
+    dead = 0
 
+    for line in enemies:
+        for enemy in line:
+            if enemy is None:
+                dead += 1
+            else:
+                enemy.draw()
+
+    return not dead == len(enemies) * len(enemies[0]) # return whether all enemies are dead
 
 def move_enemies(enemies, enemy_dir_x, enemy_dir_y):
     enemy_step_x = ENEMY_WIDTH + ENEMY_SPACING_X
@@ -148,7 +160,7 @@ def move_enemies(enemies, enemy_dir_x, enemy_dir_y):
 
     return enemy_dir_x, enemy_dir_y
 
-def game(CURRENT_DIF):
+def game(dif = CURRENT_DIF, enemy_lines = ENEMY_LINES, enemy_columns = ENEMY_COLUMNS):
     game_window = Window(WINDOW_SIZE, WINDOW_SIZE)
     game_window.set_title("Space Invaders!")
 
@@ -163,8 +175,7 @@ def game(CURRENT_DIF):
 
     enemies = init_enemies(ENEMY_LINES, ENEMY_COLUMNS)
 
-    if enemies is None: # the end
-        print("PERDEU KK")
+    if enemies is None:
         return
         
     enemy_speed = 1.5
@@ -218,6 +229,8 @@ def game(CURRENT_DIF):
                     if enemies[i][j] is not None: # enemy still alive
                         if Collision.collided(shot, enemies[i][j]):
                             enemies[i][j] = None # now it's dead
+                            global CURRENT_SCORE
+                            CURRENT_SCORE += 10
                             shots.remove(shot) # stop shooting
 
         background.draw()
@@ -226,7 +239,14 @@ def game(CURRENT_DIF):
         for shot in shots:
             shot.draw()
  
-        draw_enemies(enemies)
+        r = draw_enemies(enemies)
+
+        if not r:
+            global CURRENT_DIF
+            CURRENT_DIF += 1
+            game(CURRENT_DIF)
+
+        game_window.draw_text(str(CURRENT_SCORE), WINDOW_SIZE - 30, 10, size = 25, color = (255, 255, 255), font_name="Consolas", bold=True)
         game_window.update()
 
         delta_time = game_window.delta_time()
