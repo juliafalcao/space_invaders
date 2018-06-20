@@ -4,6 +4,7 @@ from PPlay.sprite import *
 from PPlay.keyboard import *
 from PPlay.mouse import *
 from PPlay.collision import *
+import random
 
 
 WINDOW_SIZE = 500
@@ -26,9 +27,9 @@ BUTTON_BORDER = 30
 BUTTON_SPACING = 20
 
 global ENEMY_LINES
-ENEMY_LINES = 1
+ENEMY_LINES = 3
 global ENEMY_COLUMNS
-ENEMY_COLUMNS = 4
+ENEMY_COLUMNS = 6
 
 EASY = 1
 MEDIUM = 2
@@ -71,7 +72,7 @@ def menu():
     
     while True:
         if mouse.is_over_object(botao_jogar) and mouse.is_button_pressed(1):
-            game(CURRENT_DIF)
+            game(CURRENT_DIF, CURRENT_SCORE)
 
         elif mouse.is_over_object(botao_dificuldade) and mouse.is_button_pressed(1):
             CURRENT_DIF = dificuldade()
@@ -81,7 +82,7 @@ def menu():
             print("RANKING")
 
         elif (mouse.is_over_object(botao_sair) and mouse.is_button_pressed(1)) or keyboard.key_pressed("ESC"):
-            janela.close()
+            menu_window.close()
             return
 
         bg.draw()
@@ -160,7 +161,7 @@ def move_enemies(enemies, enemy_dir_x, enemy_dir_y):
 
     return enemy_dir_x, enemy_dir_y
 
-def game(dif = CURRENT_DIF, enemy_lines = ENEMY_LINES, enemy_columns = ENEMY_COLUMNS):
+def game(dif = CURRENT_DIF, enemy_lines = ENEMY_LINES, enemy_columns = ENEMY_COLUMNS, score = CURRENT_SCORE):
     game_window = Window(WINDOW_SIZE, WINDOW_SIZE)
     game_window.set_title("Space Invaders!")
 
@@ -171,7 +172,15 @@ def game(dif = CURRENT_DIF, enemy_lines = ENEMY_LINES, enemy_columns = ENEMY_COL
 
     spaceship_speed = 2 * BASE_SPEED
     shots = []
+    enemy_shots = []
     shot_speed = 4 * BASE_SPEED
+
+    super_shot_time = 1
+    shot_charging = False
+    current_charging_time = 0
+    charging_time = 1.5
+
+    lives = 3
 
     enemies = init_enemies(ENEMY_LINES, ENEMY_COLUMNS)
 
@@ -183,8 +192,10 @@ def game(dif = CURRENT_DIF, enemy_lines = ENEMY_LINES, enemy_columns = ENEMY_COL
     enemy_dir_y = DOWN
 
     total_time = 0
-    last_shot_time = game_window.delta_time()
-    last_enemy_move = game_window.delta_time()
+    last_shot_time = 0
+    last_enemy_move = 0
+    last_enemy_shot = 0
+    enemy_shot_cooldown = 1
 
     while True:
         # spaceship movements
@@ -197,11 +208,20 @@ def game(dif = CURRENT_DIF, enemy_lines = ENEMY_LINES, enemy_columns = ENEMY_COL
                 spaceship.set_position(spaceship.x - spaceship_speed * delta_time, spaceship.y)
 
         if keyboard.key_pressed("SPACE"):
-            if total_time - last_shot_time >= shot_time:
-                new_shot = Sprite("img/shot.png")
-                new_shot.set_position(spaceship.x + SPACESHIP_WIDTH / 2, spaceship.y - SHOT_HEIGHT)
+            shot_charging = True
+            current_charging_time += delta_time
+
+        elif shot_charging:
+            if total_time - last_shot_time >= super_shot_time and current_charging_time > charging_time:
+                new_shot = Shot(spaceship.x, spaceship.y, True)
                 shots.append(new_shot)
                 last_shot_time = total_time
+            elif total_time - last_shot_time >= shot_time:
+                new_shot = Shot(spaceship.x, spaceship.y, False)
+                shots.append(new_shot)
+                last_shot_time = total_time
+            shot_charging = False
+            current_charging_time = 0
 
         elif keyboard.key_pressed("Q"):
             menu()
@@ -221,17 +241,91 @@ def game(dif = CURRENT_DIF, enemy_lines = ENEMY_LINES, enemy_columns = ENEMY_COL
 
             if shot.y <= - SHOT_HEIGHT:
                 shots.remove(shot)
-        
-        # check for enemy and shot collisions
+
+        # enemy shots
+        if total_time - last_enemy_shot > enemy_shot_cooldown:
+            total = 0 # alive enemies
+
+            for i in range(len(enemies)):
+                for j in range(len(enemies[0])):
+                    if enemies[i][j] is not None:
+                        total += 1
+
+            chosen = random.randint(0, total)
+            it = 0
+
+            for i in range(len(enemies)):
+                for j in range(len(enemies[0])):
+                    if enemies[i][j] is not None:
+                        if it == chosen:
+                            new_shot = Sprite("img/shot.png")
+                            new_shot.set_position(enemies[i][j].x + ENEMY_WIDTH / 2, enemies[i][j].y)
+                            enemy_shots.append(new_shot)
+                        it += 1
+
+            last_enemy_shot = total_time
+
+        # updates monsters shots positions
+        for shot in enemy_shots:
+            shot.set_position(shot.x, shot.y + shot_speed * delta_time)
+
+            if shot.y <= 0 - SHOT_HEIGHT:
+                shots.remove(shot)
+
+        # check for enemy and spaceship shot collisions
         for shot in shots:
             for i in range(len(enemies)):
                 for j in range(len(enemies[0])):
                     if enemies[i][j] is not None: # enemy still alive
-                        if Collision.collided(shot, enemies[i][j]):
+
+                        if Collision.collided(shot.sprite, enemies[i][j]):
                             enemies[i][j] = None # now it's dead
                             global CURRENT_SCORE
                             CURRENT_SCORE += 10
-                            shots.remove(shot) # stop shooting
+
+                            if (not shot.loaded):
+                                shots.remove(shot) # stop shooting
+
+
+        # check for spaceship and enemy shot collisions
+        for shot in enemy_shots:
+            if Collision.collided(shot, spaceship):
+                lives -= 1
+                enemy_shots.remove(shot)
+
+
+        # check if game over
+        all_enemies_dead = True
+
+        for line in enemies:
+            for enemy in line:
+                if enemy is not None:
+                    all_enemies_dead = False
+
+
+        if all_enemies_dead:
+            print("VITÓRIA!")
+            print("Agora a dificuldade é: ", end = "")
+            global CURRENT_DIF
+
+            if CURRENT_DIF == 1:
+                print("EASY")
+
+            if CURRENT_DIF == 2:
+                print("MEDIUM")
+
+            for i in range(3, CURRENT_DIF):
+                print("MUITO", end = " ")
+
+            if CURRENT_DIF >= 3:
+                print("HARD")
+
+            game(CURRENT_DIF + 1, CURRENT_SCORE)
+            return
+
+        if lives == 0:
+            print("GAME OVER")
+            return
 
         background.draw()
         spaceship.draw()
@@ -242,7 +336,7 @@ def game(dif = CURRENT_DIF, enemy_lines = ENEMY_LINES, enemy_columns = ENEMY_COL
         r = draw_enemies(enemies)
 
         if not r:
-            global CURRENT_DIF
+
             CURRENT_DIF += 1
             game(CURRENT_DIF)
 
@@ -252,5 +346,28 @@ def game(dif = CURRENT_DIF, enemy_lines = ENEMY_LINES, enemy_columns = ENEMY_COL
         delta_time = game_window.delta_time()
         total_time += delta_time
 
+class Shot:
+    def __init__(self, s_pos_x, s_pos_y, loaded):
+        self.x = s_pos_x + SPACESHIP_WIDTH / 2
+        self.y = s_pos_y - SHOT_HEIGHT
+
+        self.loaded = loaded
+        if loaded:
+            self.sprite = Sprite("img/sshot.png")
+            self.x = s_pos_x + SPACESHIP_WIDTH / 2 - 5
+            self.y = s_pos_y - SHOT_WIDTH
+        else:
+            self.sprite = Sprite("img/shot.png")
+            self.x = s_pos_x + SPACESHIP_WIDTH / 2
+            self.y = s_pos_y - SHOT_HEIGHT
+        self.sprite.set_position(self.x, self.y)
+
+    def set_position(self, x, y):
+        self.x = x
+        self.y = y
+        self.sprite.set_position(x, y)
+
+    def draw(self):
+        self.sprite.draw()
 
 menu()
